@@ -1,27 +1,17 @@
 name: Trivy Container Scan Demo
-on: [push, pull_request]
-permissions:
-  security-events: write
-
+on: [push]
 jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Build Docker image
-      run: docker build -t vuln-app .
-      
-    - name: Run Trivy vulnerability scanner
+    - name: Run Trivy on vulnerable Alpine
       uses: aquasecurity/trivy-action@0.28.0
       with:
-        image-ref: 'vuln-app'
+        image-ref: 'python:3.9-alpine3.18'  # Has 20+ CRITICAL vulns
         format: 'sarif'
         output: 'trivy-results.sarif'
-        severity: 'HIGH,CRITICAL'
     
-    - name: Upload Trivy scan results to GitHub Security tab
+    - name: Upload results
       uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: 'trivy-results.sarif'
