@@ -1,17 +1,22 @@
-name: Trivy Container Scan Demo
+name: Scan MY Cloned Repo → Container Security
 on: [push]
 jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
-    - name: Run Trivy on vulnerable Alpine
+    - uses: actions/checkout@v4        # Gets YOUR AnaisUrlichs/trivy-demo code
+    
+    - name: Build Docker from MY repo
+      run: docker build -t demo-app .  # Builds YOUR repo's content
+      
+    - name: Trivy scans MY image
       uses: aquasecurity/trivy-action@0.28.0
       with:
-        image-ref: 'python:3.9-alpine3.18'  # Has 20+ CRITICAL vulns
+        image-ref: 'demo-app'          # Scans image from YOUR repo
         format: 'sarif'
         output: 'trivy-results.sarif'
     
-    - name: Upload results
+    - name: Upload to Security tab
       uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: 'trivy-results.sarif'
