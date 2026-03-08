@@ -15,6 +15,11 @@ jobs:
         image-ref: 'demo-app'          # Scans image from YOUR repo
         format: 'sarif'
         output: 'trivy-results.sarif'
+    - name: Download Trivy HTML Template
+      run: |
+        mkdir -p contrib
+        curl -L https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -o contrib/html.tpl
+    
     - name: Trivy Scan HTML Report
       run: |
         trivy image --format template \
