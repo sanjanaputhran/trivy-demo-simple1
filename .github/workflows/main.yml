@@ -15,11 +15,17 @@ jobs:
         image-ref: 'demo-app'          # Scans image from YOUR repo
         format: 'sarif'
         output: 'trivy-results.sarif'
-    - name: Upload Trivy Report Artifact
+    - name: Trivy Scan HTML Report
+      run: |
+        trivy image --format template \
+        --template "@contrib/html.tpl" \
+        -o trivy-report.html demo-app
+        
+    - name: Upload HTML Report
       uses: actions/upload-artifact@v4
       with:
-        name: trivy-report
-        path: trivy-results.sarif
+        name: trivy-html-report
+        path: trivy-report.html
         
     - name: Upload to Security tab
       uses: github/codeql-action/upload-sarif@v3
