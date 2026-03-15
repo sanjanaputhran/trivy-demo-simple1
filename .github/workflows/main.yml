@@ -12,28 +12,148 @@ jobs:
     - name: Build Docker from MY repo
       run: docker build -t demo-app .
 
-    - name: Trivy scans MY image
+    - name: Trivy scans MY image (SARIF)
       uses: aquasecurity/trivy-action@0.28.0
       with:
         image-ref: 'demo-app'
         format: 'sarif'
         output: 'trivy-results.sarif'
 
-    - name: Download Trivy HTML Template
+    - name: Download Custom Trivy HTML Template
       run: |
         mkdir -p contrib
-        curl -L https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -o contrib/html.tpl
+        cat << 'EOF' > contrib/custom-html.tpl
+        <html>
+        <head>
+        <title>Trivy Security Report</title>
 
-    - name: Modify Template to Show Location
-      run: |
-        sed -i 's/<th>Fixed Version<\/th>/<th>Fixed Version<\/th><th>Location<\/th>/' contrib/html.tpl
-        sed -i 's/<td>{{ .FixedVersion }}<\/td>/<td>{{ .FixedVersion }}<\/td><td>{{ .PkgPath }}<\/td>/' contrib/html.tpl
+        <style>
+        body {
+          font-family: Arial, sans-serif;
+          background-color: #f4f6f8;
+          margin: 40px;
+        }
 
-    - name: Generate Trivy HTML Report
+        h1 {
+          color: #2c3e50;
+        }
+
+        h2 {
+          color: #34495e;
+        }
+
+        table {
+          border-collapse: collapse;
+          width: 100%;
+          background: white;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        th {
+          background-color: #2c3e50;
+          color: white;
+          padding: 10px;
+        }
+
+        td {
+          padding: 8px;
+          border-bottom: 1px solid #ddd;
+        }
+
+        tr:hover {
+          background-color: #f1f1f1;
+        }
+
+        .CRITICAL {
+          background-color: #8b0000;
+          color: white;
+          font-weight: bold;
+          padding: 4px 8px;
+          border-radius: 4px;
+        }
+
+        .HIGH {
+          background-color: #e74c3c;
+          color: white;
+          font-weight: bold;
+          padding: 4px 8px;
+          border-radius: 4px;
+        }
+
+        .MEDIUM {
+          background-color: #f39c12;
+          color: white;
+          font-weight: bold;
+          padding: 4px 8px;
+          border-radius: 4px;
+        }
+
+        .LOW {
+          background-color: #3498db;
+          color: white;
+          font-weight: bold;
+          padding: 4px 8px;
+          border-radius: 4px;
+        }
+
+        .UNKNOWN {
+          background-color: #7f8c8d;
+          color: white;
+          font-weight: bold;
+          padding: 4px 8px;
+          border-radius: 4px;
+        }
+
+        </style>
+
+        </head>
+
+        <body>
+
+        <h1>Container Vulnerability Report</h1>
+
+        {{ range . }}
+        <h2>Target: {{ .Target }}</h2>
+
+        <table>
+        <tr>
+        <th>Package</th>
+        <th>Severity</th>
+        <th>Installed Version</th>
+        <th>Fixed Version</th>
+        <th>Location / Layer</th>
+        <th>Description</th>
+        </tr>
+
+        {{ range .Vulnerabilities }}
+        <tr>
+        <td>{{ .PkgName }}</td>
+
+        <td>
+        <span class="{{ .Severity }}">{{ .Severity }}</span>
+        </td>
+
+        <td>{{ .InstalledVersion }}</td>
+        <td>{{ .FixedVersion }}</td>
+        <td>{{ .PkgPath }}</td>
+        <td>{{ .Title }}</td>
+        </tr>
+        {{ end }}
+
+        </table>
+
+        <br><br>
+        {{ end }}
+
+        </body>
+        </html>
+        EOF
+
+    - name: Trivy Scan HTML Report
       run: |
         trivy image \
         --format template \
-        --template "@contrib/html.tpl" \
+        --template "@contrib/custom-html.tpl" \
         -o trivy-report.html demo-app
 
     - name: Upload HTML Report
