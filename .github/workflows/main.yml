@@ -12,60 +12,28 @@ jobs:
     - name: Build Docker from MY repo
       run: docker build -t demo-app .
 
-    - name: Trivy scans MY image (SARIF)
+    - name: Trivy scans MY image
       uses: aquasecurity/trivy-action@0.28.0
       with:
         image-ref: 'demo-app'
         format: 'sarif'
         output: 'trivy-results.sarif'
 
-    - name: Download Custom Trivy HTML Template
+    - name: Download Trivy HTML Template
       run: |
         mkdir -p contrib
-        cat << 'EOF' > contrib/custom-html.tpl
-        <html>
-        <head>
-        <title>Trivy Security Report</title>
-        </head>
-        <body>
-        <h1>Container Vulnerability Report</h1>
+        curl -L https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -o contrib/html.tpl
 
-        {{ range . }}
-        <h2>Target: {{ .Target }}</h2>
+    - name: Modify Template to Show Location
+      run: |
+        sed -i 's/<th>Fixed Version<\/th>/<th>Fixed Version<\/th><th>Location<\/th>/' contrib/html.tpl
+        sed -i 's/<td>{{ .FixedVersion }}<\/td>/<td>{{ .FixedVersion }}<\/td><td>{{ .PkgPath }}<\/td>/' contrib/html.tpl
 
-        <table border="1" cellpadding="5">
-        <tr>
-        <th>Package</th>
-        <th>Severity</th>
-        <th>Installed Version</th>
-        <th>Fixed Version</th>
-        <th>Location / Layer</th>
-        <th>Description</th>
-        </tr>
-
-        {{ range .Vulnerabilities }}
-        <tr>
-        <td>{{ .PkgName }}</td>
-        <td>{{ .Severity }}</td>
-        <td>{{ .InstalledVersion }}</td>
-        <td>{{ .FixedVersion }}</td>
-        <td>{{ .PkgPath }}</td>
-        <td>{{ .Title }}</td>
-        </tr>
-        {{ end }}
-
-        </table>
-        {{ end }}
-
-        </body>
-        </html>
-        EOF
-
-    - name: Trivy Scan HTML Report
+    - name: Generate Trivy HTML Report
       run: |
         trivy image \
         --format template \
-        --template "@contrib/custom-html.tpl" \
+        --template "@contrib/html.tpl" \
         -o trivy-report.html demo-app
 
     - name: Upload HTML Report
