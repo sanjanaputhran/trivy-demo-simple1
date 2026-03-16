@@ -12,12 +12,13 @@ jobs:
     - name: Build Docker from MY repo
       run: docker build -t demo-app .
 
-    - name: Trivy scans MY image (SARIF)
+    - name: Trivy scans MY image (Vulnerabilities + Misconfigurations)
       uses: aquasecurity/trivy-action@0.28.0
       with:
         image-ref: 'demo-app'
         format: 'sarif'
         output: 'trivy-results.sarif'
+        scanners: 'vuln,misconfig'
 
     - name: Download Custom Trivy HTML Template
       run: |
@@ -34,13 +35,8 @@ jobs:
           margin: 40px;
         }
 
-        h1 {
-          color: #2c3e50;
-        }
-
-        h2 {
-          color: #34495e;
-        }
+        h1 { color: #2c3e50; }
+        h2 { color: #34495e; }
 
         table {
           border-collapse: collapse;
@@ -60,49 +56,13 @@ jobs:
           border-bottom: 1px solid #ddd;
         }
 
-        tr:hover {
-          background-color: #f1f1f1;
-        }
+        tr:hover { background-color: #f1f1f1; }
 
-        .CRITICAL {
-          background-color: #8b0000;
-          color: white;
-          font-weight: bold;
-          padding: 4px 8px;
-          border-radius: 4px;
-        }
-
-        .HIGH {
-          background-color: #e74c3c;
-          color: white;
-          font-weight: bold;
-          padding: 4px 8px;
-          border-radius: 4px;
-        }
-
-        .MEDIUM {
-          background-color: #f39c12;
-          color: white;
-          font-weight: bold;
-          padding: 4px 8px;
-          border-radius: 4px;
-        }
-
-        .LOW {
-          background-color: #3498db;
-          color: white;
-          font-weight: bold;
-          padding: 4px 8px;
-          border-radius: 4px;
-        }
-
-        .UNKNOWN {
-          background-color: #7f8c8d;
-          color: white;
-          font-weight: bold;
-          padding: 4px 8px;
-          border-radius: 4px;
-        }
+        .CRITICAL {background:#8b0000;color:white;padding:4px 8px;border-radius:4px;}
+        .HIGH {background:#e74c3c;color:white;padding:4px 8px;border-radius:4px;}
+        .MEDIUM {background:#f39c12;color:white;padding:4px 8px;border-radius:4px;}
+        .LOW {background:#3498db;color:white;padding:4px 8px;border-radius:4px;}
+        .UNKNOWN {background:#7f8c8d;color:white;padding:4px 8px;border-radius:4px;}
 
         </style>
 
@@ -110,29 +70,28 @@ jobs:
 
         <body>
 
-        <h1>Container Vulnerability Report</h1>
+        <h1>Container Security Report</h1>
 
         {{ range . }}
+
         <h2>Target: {{ .Target }}</h2>
 
+        {{ if .Vulnerabilities }}
+        <h3>Vulnerabilities</h3>
         <table>
         <tr>
         <th>Package</th>
         <th>Severity</th>
         <th>Installed Version</th>
         <th>Fixed Version</th>
-        <th>Location / Layer</th>
+        <th>Location</th>
         <th>Description</th>
         </tr>
 
         {{ range .Vulnerabilities }}
         <tr>
         <td>{{ .PkgName }}</td>
-
-        <td>
-        <span class="{{ .Severity }}">{{ .Severity }}</span>
-        </td>
-
+        <td><span class="{{ .Severity }}">{{ .Severity }}</span></td>
         <td>{{ .InstalledVersion }}</td>
         <td>{{ .FixedVersion }}</td>
         <td>{{ .PkgPath }}</td>
@@ -141,17 +100,43 @@ jobs:
         {{ end }}
 
         </table>
+        {{ end }}
+
+        {{ if .Misconfigurations }}
+        <h3>Misconfigurations</h3>
+
+        <table>
+        <tr>
+        <th>ID</th>
+        <th>Severity</th>
+        <th>Title</th>
+        <th>Description</th>
+        </tr>
+
+        {{ range .Misconfigurations }}
+        <tr>
+        <td>{{ .ID }}</td>
+        <td><span class="{{ .Severity }}">{{ .Severity }}</span></td>
+        <td>{{ .Title }}</td>
+        <td>{{ .Description }}</td>
+        </tr>
+        {{ end }}
+
+        </table>
+        {{ end }}
 
         <br><br>
+
         {{ end }}
 
         </body>
         </html>
         EOF
 
-    - name: Trivy Scan HTML Report
+    - name: Generate Trivy HTML Report
       run: |
         trivy image \
+        --scanners vuln,misconfig \
         --format template \
         --template "@contrib/custom-html.tpl" \
         -o trivy-report.html demo-app
@@ -162,7 +147,7 @@ jobs:
         name: trivy-html-report
         path: trivy-report.html
 
-    - name: Upload to Security tab
+    - name: Upload Results to GitHub Security Tab
       uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: 'trivy-results.sarif'
